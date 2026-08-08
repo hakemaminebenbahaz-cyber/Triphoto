@@ -7,19 +7,21 @@ venv/
 .pytest_cache/
 *.egg-info/
 
-# ML artifacts
+# ML artifacts — données et poids exclus (volumineux, reproductibles via ml/scripts/)
 ml/data/raw/*
 !ml/data/raw/.gitkeep
 ml/data/processed/*
 !ml/data/processed/.gitkeep
 ml/models/*
 !ml/models/.gitkeep
-ml/reports/*
-!ml/reports/.gitkeep
 *.h5
 *.keras
 *.onnx
 *.pkl
+*.pt
+
+# ml/reports/ : les rapports (JSON + PNG, petits) restent versionnés comme preuve
+# d'exécution du pipeline — seule exception explicite ci-dessus.
 
 # Node / front
 app/node_modules/

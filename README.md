@@ -33,12 +33,15 @@ pytest api/tests
 Doc interactive une fois lancée : http://127.0.0.1:8000/docs
 
 ### ML
+Depuis la racine du repo (les scripts s'appellent en tant que modules pour que les imports `ml.xxx` fonctionnent) :
 ```bash
-cd ml
-pip install -r requirements.txt
-python scripts/prepare_data.py
-python scripts/train.py
-python scripts/evaluate.py
+python -m venv .venv-ml && .venv-ml\Scripts\activate
+pip install -r ml/requirements.txt
+python -m ml.scripts.prepare_data   # valide + découpe le dataset (télécharger TrashNet dans ml/data/raw d'abord, voir ml/README.md)
+python -m ml.scripts.train --epochs 5
+python -m ml.scripts.evaluate
+pytest ml/tests -m "not slow"       # tests rapides (synthétiques)
+pytest ml/tests -m "slow"           # smoke tests d'entraînement réel (télécharge les poids ImageNet)
 ```
 
 ### App

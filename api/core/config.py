@@ -25,12 +25,13 @@ class Settings(BaseSettings):
 
     # Modèle (C11, C13)
     model_path: str = "../ml/models/waste_classifier.onnx"
+    # Classes alignées sur le dataset d'entraînement (TrashNet) — voir ml/README.md
     model_labels: list[str] = [
-        "verre",
-        "plastique",
         "carton",
+        "verre",
         "metal",
-        "organique",
+        "papier",
+        "plastique",
         "poubelle_generale",
     ]
 

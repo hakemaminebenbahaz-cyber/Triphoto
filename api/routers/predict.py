@@ -16,8 +16,8 @@ DISPOSAL_HINTS = {
     "verre": "Bac à verre",
     "plastique": "Bac jaune (tri sélectif)",
     "carton": "Bac jaune (tri sélectif)",
+    "papier": "Bac jaune (tri sélectif)",
     "metal": "Bac jaune (tri sélectif)",
-    "organique": "Bac à compost / biodéchets",
     "poubelle_generale": "Bac ordures ménagères",
 }
 

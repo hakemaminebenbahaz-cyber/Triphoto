@@ -6,16 +6,61 @@ déterministe (basée sur le contenu du fichier) pour que l'API, ses tests et
 l'application front soient développables et démontrables indépendamment du
 calendrier d'entraînement du modèle.
 
-Une fois le modèle exporté en ONNX (ml/models/waste_classifier.onnx), il est
-chargé automatiquement au démarrage et remplace le mode stub.
+Dès que ml/models/waste_classifier.onnx existe, il est chargé automatiquement
+au démarrage et remplace le mode stub. Le pré-traitement (resize 256 / center
+crop 224 / normalisation ImageNet) reproduit exactement les transforms utilisés
+à l'entraînement (torchvision MobileNet_V3_Small_Weights.DEFAULT.transforms()),
+pour éviter un écart silencieux entre entraînement et inférence.
 """
 
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 
+import numpy as np
+from PIL import Image
+
 from api.core.config import Settings
+
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+RESIZE_SHORT_SIDE = 256
+CROP_SIZE = 224
+
+
+def _resize_shorter_side(image: Image.Image, size: int) -> Image.Image:
+    w, h = image.size
+    if w <= h:
+        new_w, new_h = size, round(h * size / w)
+    else:
+        new_h, new_w = size, round(w * size / h)
+    return image.resize((new_w, new_h), Image.BILINEAR)
+
+
+def _center_crop(image: Image.Image, size: int) -> Image.Image:
+    w, h = image.size
+    left = (w - size) // 2
+    top = (h - size) // 2
+    return image.crop((left, top, left + size, top + size))
+
+
+def preprocess(image_bytes: bytes) -> np.ndarray:
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image = _resize_shorter_side(image, RESIZE_SHORT_SIDE)
+    image = _center_crop(image, CROP_SIZE)
+
+    array = np.asarray(image).astype(np.float32) / 255.0  # HWC in [0, 1]
+    array = (array - IMAGENET_MEAN) / IMAGENET_STD
+    array = array.transpose(2, 0, 1)  # CHW
+    return np.expand_dims(array, axis=0).astype(np.float32)  # NCHW
+
+
+def softmax(logits: np.ndarray) -> np.ndarray:
+    shifted = logits - np.max(logits)
+    exp = np.exp(shifted)
+    return exp / exp.sum()
 
 
 class ModelWrapper:
@@ -27,13 +72,15 @@ class ModelWrapper:
         self._try_load_onnx()
 
     def _try_load_onnx(self) -> None:
-        model_file = os.path.join(os.path.dirname(__file__), "..", self.settings.model_path)
+        model_file = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", self.settings.model_path)
+        )
         if not os.path.exists(model_file):
             return
         try:
             import onnxruntime as ort  # import tardif : dépendance optionnelle tant que non entraîné
 
-            self.session = ort.InferenceSession(model_file)
+            self.session = ort.InferenceSession(model_file, providers=["CPUExecutionProvider"])
             self.mode = "onnx"
         except ImportError:
             # onnxruntime pas installé : on reste en mode stub sans planter l'API
@@ -41,7 +88,12 @@ class ModelWrapper:
 
     def predict(self, image_bytes: bytes) -> dict:
         if self.mode == "onnx" and self.session is not None:
-            return self._predict_onnx(image_bytes)
+            try:
+                return self._predict_onnx(image_bytes)
+            except Exception:
+                # une image illisible ou un modèle corrompu ne doit pas faire planter l'API :
+                # on retombe sur le stub plutôt que de renvoyer une 500 opaque au client.
+                return self._predict_stub(image_bytes)
         return self._predict_stub(image_bytes)
 
     def _predict_stub(self, image_bytes: bytes) -> dict:
@@ -56,10 +108,18 @@ class ModelWrapper:
         }
 
     def _predict_onnx(self, image_bytes: bytes) -> dict:
-        raise NotImplementedError(
-            "Pré-traitement + inférence ONNX à implémenter une fois le modèle entraîné "
-            "(voir ml/scripts/train.py et ml/scripts/evaluate.py)."
-        )
+        input_array = preprocess(image_bytes)
+        input_name = self.session.get_inputs()[0].name
+        (logits,) = self.session.run(None, {input_name: input_array})
+
+        probabilities = softmax(logits[0])
+        index = int(np.argmax(probabilities))
+
+        return {
+            "label": self.labels[index],
+            "confidence": round(float(probabilities[index]), 4),
+            "model_version": "waste_classifier-v1-mobilenetv3",
+        }
 
 
 _model_singleton: ModelWrapper | None = None

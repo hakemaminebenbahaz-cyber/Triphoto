@@ -1,3 +1,6 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["api/tests", "ml/tests"]
+markers = [
+    "slow: tests qui entraînent/évaluent un vrai modèle (téléchargent les poids pré-entraînés au premier lancement)",
+]
