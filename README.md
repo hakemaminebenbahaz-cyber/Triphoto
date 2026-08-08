@@ -48,8 +48,11 @@ pytest ml/tests -m "slow"           # smoke tests d'entraînement réel (téléc
 ```bash
 cd app
 npm install
-npm run dev
+npm run dev      # http://localhost:5173 (l'API doit tourner sur http://127.0.0.1:8000)
+npm test         # tests unitaires (Vitest + Testing Library)
+npm run build    # build de production dans app/dist (packaging, C19)
 ```
+Testé avec Node 20.11 (un warning `EBADENGINE` non bloquant peut s'afficher, `@vitejs/plugin-react` recommandant Node ≥20.19). Variables d'env optionnelles : `VITE_API_BASE_URL`, `VITE_DEMO_CLIENT_ID`, `VITE_DEMO_CLIENT_SECRET` (voir `app/.env.example`).
 
 ## État d'avancement
 

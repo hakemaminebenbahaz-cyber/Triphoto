@@ -27,6 +27,7 @@ ml/models/*
 app/node_modules/
 app/dist/
 app/.vite/
+app/*.tsbuildinfo
 
 # Env
 .env
