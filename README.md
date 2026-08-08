@@ -54,6 +54,15 @@ npm run build    # build de production dans app/dist (packaging, C19)
 ```
 Testé avec Node 20.11 (un warning `EBADENGINE` non bloquant peut s'afficher, `@vitejs/plugin-react` recommandant Node ≥20.19). Variables d'env optionnelles : `VITE_API_BASE_URL`, `VITE_DEMO_CLIENT_ID`, `VITE_DEMO_CLIENT_SECRET` (voir `app/.env.example`).
 
+## Documentation
+
+- [`docs/user-stories.md`](docs/user-stories.md) — besoin fonctionnel, critères d'acceptation incluant l'accessibilité (C14)
+- [`docs/architecture.md`](docs/architecture.md) — architecture n-tiers, choix techniques, diagrammes de flux, éco-conception, PoC (C15)
+- [`docs/agile.md`](docs/agile.md) — organisation agile solo, backlog, journal de sprint (C16)
+- [`docs/accessibilite.md`](docs/accessibilite.md) — conformité WCAG 2.1 AA, ce qui reste à auditer (C14, C17)
+- [`docs/rgpd.md`](docs/rgpd.md) — données traitées, minimisation, points de vigilance
+- [`ml/README.md`](ml/README.md) — dataset, pipeline ML, résultats et limites mesurées du modèle
+
 ## État d'avancement
 
-Voir la grille de conformité E3/E4 (compétences C9-C19) pour le suivi détaillé des livrables.
+Voir la grille de conformité E3/E4 (compétences C9-C19, 44 livrables) pour le suivi détaillé — construite comme outil de suivi en artefact séparé au fil du projet.
