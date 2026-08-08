@@ -1,0 +1,79 @@
+name: CI - Application (api + app)
+
+# Couvre C18 (tests automatisés à chaque changement) et C19 (packaging +
+# livraison continue) de l'application — distincte de ci-model.yml : déployer
+# l'application ne doit pas dépendre d'un ré-entraînement du modèle.
+
+on:
+  pull_request:
+    paths: ["api/**", "app/**", ".github/workflows/ci-app.yml"]
+  push:
+    branches: [main]
+    paths: ["api/**", "app/**"]
+  workflow_dispatch: {}
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r api/requirements.txt
+      - run: pytest api/tests -v
+
+  test-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+        working-directory: app
+      - run: npm test
+        working-directory: app
+
+  package:
+    needs: [test-api, test-app]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Build de production du front (packaging, C19)
+        run: |
+          npm ci
+          npm run build
+        working-directory: app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-dist
+          path: app/dist
+
+      - name: Build de l'image Docker de l'API (packaging, C19)
+        run: docker build -f api/Dockerfile -t triphoto-api:${{ github.sha }} .
+
+      - name: Build de l'image Docker du front (packaging, C19)
+        run: docker build -f app/Dockerfile -t triphoto-app:${{ github.sha }} .
+
+  deliver:
+    if: github.event_name == 'pull_request'
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Marquer la pull request comme prête pour la pré-production (C19)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" --body "✅ **API et application buildées avec succès** (tests passés, images Docker packagées). Prêtes pour livraison en pré-production."

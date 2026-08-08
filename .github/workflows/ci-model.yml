@@ -1,0 +1,90 @@
+name: CI - Modèle (ml)
+
+# Couvre C13 : automatise validation, test, entraînement, évaluation (porte de
+# qualité), packaging et livraison du modèle. Découplée de ci-app.yml : le
+# modèle a son propre cycle de vie (ré-entraînement périodique) indépendant
+# du déploiement de l'application.
+
+on:
+  pull_request:
+    paths: ["ml/**", ".github/workflows/ci-model.yml"]
+  push:
+    branches: [main]
+    paths: ["ml/**"]
+  schedule:
+    - cron: "0 3 * * 1" # ré-entraînement hebdomadaire (lundi 03h00 UTC) — déclencheur MLOps (C11)
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r ml/requirements.txt
+      - name: Tests rapides (données synthétiques)
+        run: pytest ml/tests -m "not slow" -v
+      - name: Tests lents (smoke test entraînement/évaluation réels)
+        run: pytest ml/tests -m "slow" -v
+
+  train-evaluate-package:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r ml/requirements.txt
+
+      - name: Télécharger le dataset TrashNet
+        run: |
+          curl -L "https://huggingface.co/datasets/garythung/trashnet/resolve/main/dataset-resized.zip" -o ml/data/raw/dataset-resized.zip
+          cd ml/data/raw
+          unzip -q dataset-resized.zip -d trashnet
+          rm dataset-resized.zip
+          rm -rf trashnet/__MACOSX trashnet/dataset-resized/.DS_Store
+
+      - name: Préparer les données (C12)
+        run: python -m ml.scripts.prepare_data
+
+      - name: Entraîner le modèle (C12, C13)
+        run: python -m ml.scripts.train --epochs 5
+
+      - name: Évaluer + porte de qualité (C12, C13)
+        run: python -m ml.scripts.evaluate # échoue (exit != 0) si accuracy < 60 %
+
+      - name: Empaqueter (image Docker de l'API embarquant le modèle)
+        run: docker build -f api/Dockerfile -t triphoto-api:${{ github.sha }} .
+
+      - name: Publier le modèle et les rapports comme artefacts du run
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-artifacts
+          path: |
+            ml/reports/
+            ml/models/
+
+  deliver:
+    if: github.event_name == 'pull_request'
+    needs: train-evaluate-package
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ml-artifacts
+          path: ml-artifacts
+      - name: Attacher le rapport d'évaluation à la pull request (C13)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ACCURACY=$(python3 -c "import json; print(json.load(open('ml-artifacts/reports/evaluation_report.json'))['accuracy'])")
+          gh pr comment "${{ github.event.pull_request.number }}" --body "**Rapport d'évaluation du modèle TriPhoto**
+          - Accuracy (jeu de test) : \`${ACCURACY}\` (seuil de qualité : 0.60)
+          - Détail par classe, matrice de confusion et poids du modèle : voir l'artefact \`ml-artifacts\` de ce run.
+          "
