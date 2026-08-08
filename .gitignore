@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-*/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# ML artifacts
+ml/data/raw/*
+!ml/data/raw/.gitkeep
+ml/data/processed/*
+!ml/data/processed/.gitkeep
+ml/models/*
+!ml/models/.gitkeep
+ml/reports/*
+!ml/reports/.gitkeep
+*.h5
+*.keras
+*.onnx
+*.pkl
+
+# Node / front
+app/node_modules/
+app/dist/
+app/.vite/
+
+# Env
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
