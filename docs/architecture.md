@@ -76,4 +76,11 @@ sequenceDiagram
 
 ## Preuve de concept (pré-production)
 
-Statut : **à réaliser** — voir la grille de conformité, c'est un point de vigilance identifié (C15 exige un déploiement réel accessible, pas seulement un fonctionnement en local). Cible : déployer l'image Docker de l'API et le build statique du front sur une offre PaaS gratuite/à faible coût avant la soutenance, et documenter ici l'URL + les résultats du test d'accès une fois fait.
+Statut : **déployée et fonctionnelle** (12/08/2026), sur Render (offre gratuite), via le blueprint `render.yaml` à la racine du repo.
+
+- API : https://triphoto-api.onrender.com (`/health` confirme `model_mode: "onnx"` — le vrai modèle entraîné, pas le stub)
+- Application : https://triphoto-app.onrender.com
+
+**Test d'accès effectué** : upload d'une vraie photo (bouteille plastique) sur l'app en production → appel réel de l'API → réponse correcte ("Plastique / Bac jaune (tri sélectif)", confiance 100 %) → zéro erreur console. CORS entre les deux services (`ALLOWED_ORIGINS` / `VITE_API_BASE_URL`) fonctionnel sans ajustement manuel, les deux URLs assignées par Render correspondant à celles anticipées dans `render.yaml`.
+
+**Limite connue de l'offre gratuite** : le service API s'endort après 15 minutes d'inactivité et met 20-50 secondes à répondre à la requête suivante (le reste du temps, < 400 ms). À anticiper avant la démonstration en soutenance en rechargeant l'app quelques minutes avant de passer.
