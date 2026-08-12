@@ -72,6 +72,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
       - name: Marquer la pull request comme prête pour la pré-production (C19)
         env:
           GH_TOKEN: ${{ github.token }}
