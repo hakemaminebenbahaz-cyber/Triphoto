@@ -23,6 +23,7 @@ export default function App() {
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -66,6 +67,7 @@ export default function App() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   }
 
   return (
@@ -79,7 +81,7 @@ export default function App() {
       <main>
         <form onSubmit={handleSubmit} className="upload-form">
           <div className="field">
-            <label htmlFor="photo-input">Photo du déchet</label>
+            <label htmlFor="photo-input">Choisir une photo</label>
             <input
               ref={fileInputRef}
               id="photo-input"
@@ -89,8 +91,22 @@ export default function App() {
               onChange={handleFileChange}
               aria-describedby="photo-hint"
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="photo-input-camera">Ou prendre une photo directement</label>
+            <input
+              ref={cameraInputRef}
+              id="photo-input-camera"
+              name="photo-camera"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              onChange={handleFileChange}
+              aria-describedby="photo-hint"
+            />
             <p id="photo-hint" className="hint">
-              Formats acceptés : JPEG, PNG, WebP. 8 Mo maximum.
+              Formats acceptés : JPEG, PNG, WebP. 8 Mo maximum. Sur mobile, le second champ ouvre l'appareil photo directement.
             </p>
           </div>
 
@@ -125,13 +141,31 @@ export default function App() {
             <article className="result">
               <p className="result-label">{MATERIAL_LABELS[result.label] ?? result.label}</p>
               <p className="result-hint">{result.disposalHint}</p>
-              <p className="result-confidence">Confiance du modèle : {formatConfidence(result.confidence)}</p>
+
+              <ul className="confidence-bars">
+                {result.topPredictions.map((prediction) => (
+                  <li key={prediction.label}>
+                    <div className="confidence-bar-row">
+                      <span>{MATERIAL_LABELS[prediction.label] ?? prediction.label}</span>
+                      <span>{formatConfidence(prediction.confidence)}</span>
+                    </div>
+                    <div className="confidence-bar-track">
+                      <div
+                        className="confidence-bar-fill"
+                        style={{ width: formatConfidence(prediction.confidence) }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </article>
           )}
         </div>
       </main>
 
       <footer className="footer">
+        <img src="/qr-triphoto-app.png" alt="QR code vers cette application" width="72" height="72" />
+        <p>Scannez pour essayer sur votre téléphone</p>
         <p>Projet TriPhoto — RNCP37827, épreuves E3 et E4.</p>
       </footer>
     </div>

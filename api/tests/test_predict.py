@@ -36,6 +36,12 @@ def test_predict_returns_a_known_label(client, auth_headers):
     assert 0 <= body["confidence"] <= 1
     assert body["disposal_hint"]
     assert body["model_version"] == "stub-v0"
+    assert len(body["top_predictions"]) == 3
+    assert body["top_predictions"][0]["label"] == body["label"]
+    assert body["top_predictions"][0]["confidence"] == body["confidence"]
+    confidences = [p["confidence"] for p in body["top_predictions"]]
+    assert confidences == sorted(confidences, reverse=True)
+    assert len({p["label"] for p in body["top_predictions"]}) == 3  # trois matières distinctes
 
 
 def test_predict_is_deterministic_for_the_same_image(client, auth_headers):
@@ -72,3 +78,6 @@ def test_predict_uses_real_model_on_a_genuine_image(client, auth_headers):
     body = response.json()
     assert body["model_version"] == "waste_classifier-v1-mobilenetv3"
     assert body["label"] in {"carton", "verre", "metal", "papier", "plastique", "poubelle_generale"}
+    assert len(body["top_predictions"]) == 3
+    confidences = [p["confidence"] for p in body["top_predictions"]]
+    assert confidences == sorted(confidences, reverse=True)

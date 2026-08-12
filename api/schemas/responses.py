@@ -16,6 +16,11 @@ class HealthResponse(BaseModel):
     api_version: str
 
 
+class LabelScore(BaseModel):
+    label: str
+    confidence: float
+
+
 class PredictionResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
@@ -23,6 +28,7 @@ class PredictionResponse(BaseModel):
     confidence: float
     model_version: str
     disposal_hint: str
+    top_predictions: list[LabelScore]
 
 
 class ErrorResponse(BaseModel):

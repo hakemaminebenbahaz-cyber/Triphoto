@@ -11,7 +11,7 @@ vi.mock("./api", async () => {
 const mockedPredictWaste = vi.mocked(predictWaste);
 
 function selectAFile() {
-  const input = screen.getByLabelText(/photo du déchet/i) as HTMLInputElement;
+  const input = screen.getByLabelText(/choisir une photo/i) as HTMLInputElement;
   const file = new File(["fake-bytes"], "bouteille.jpg", { type: "image/jpeg" });
   fireEvent.change(input, { target: { files: [file] } });
   return file;
@@ -22,6 +22,22 @@ beforeEach(() => {
 });
 
 describe("App", () => {
+  it("propose un champ de galerie et un champ caméra distincts", () => {
+    render(<App />);
+    const gallery = screen.getByLabelText(/choisir une photo/i) as HTMLInputElement;
+    const camera = screen.getByLabelText(/prendre une photo directement/i) as HTMLInputElement;
+    expect(gallery).not.toBe(camera);
+    expect(camera.getAttribute("capture")).toBe("environment");
+  });
+
+  it("active le bouton quand la photo vient du champ caméra", () => {
+    render(<App />);
+    const camera = screen.getByLabelText(/prendre une photo directement/i) as HTMLInputElement;
+    const file = new File(["fake-bytes"], "photo-live.jpg", { type: "image/jpeg" });
+    fireEvent.change(camera, { target: { files: [file] } });
+    expect(screen.getByRole("button", { name: /identifier ce déchet/i })).toBeEnabled();
+  });
+
   it("désactive le bouton tant qu'aucune photo n'est choisie", () => {
     render(<App />);
     expect(screen.getByRole("button", { name: /identifier ce déchet/i })).toBeDisabled();
@@ -39,6 +55,11 @@ describe("App", () => {
       confidence: 0.87,
       modelVersion: "waste_classifier-v1-mobilenetv3",
       disposalHint: "Bac à verre",
+      topPredictions: [
+        { label: "verre", confidence: 0.87 },
+        { label: "plastique", confidence: 0.09 },
+        { label: "metal", confidence: 0.04 },
+      ],
     });
 
     render(<App />);
@@ -46,8 +67,12 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /identifier ce déchet/i }));
 
     await waitFor(() => expect(screen.getByText("Bac à verre")).toBeInTheDocument());
-    expect(screen.getByText("Verre")).toBeInTheDocument();
-    expect(screen.getByText(/87 %/)).toBeInTheDocument();
+    // "Verre" apparaît deux fois : le résultat principal + la 1ère ligne du top-3
+    expect(screen.getAllByText("Verre").length).toBe(2);
+    expect(screen.getAllByText(/87 %/).length).toBeGreaterThan(0);
+    // les deux alternatives du top-3 sont aussi affichées avec leur propre barre
+    expect(screen.getByText("Plastique")).toBeInTheDocument();
+    expect(screen.getByText(/9 %/)).toBeInTheDocument();
   });
 
   it("affiche un message d'erreur explicite si l'API échoue", async () => {
@@ -66,6 +91,7 @@ describe("App", () => {
       confidence: 0.9,
       modelVersion: "waste_classifier-v1-mobilenetv3",
       disposalHint: "Bac jaune (tri sélectif)",
+      topPredictions: [{ label: "carton", confidence: 0.9 }],
     });
 
     render(<App />);

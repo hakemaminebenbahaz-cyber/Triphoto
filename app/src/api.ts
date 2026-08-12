@@ -12,11 +12,17 @@ interface TokenPair {
   refreshToken: string;
 }
 
+export interface LabelScore {
+  label: string;
+  confidence: number;
+}
+
 export interface PredictionResult {
   label: string;
   confidence: number;
   modelVersion: string;
   disposalHint: string;
+  topPredictions: LabelScore[];
 }
 
 let cachedTokens: TokenPair | null = null;
@@ -71,6 +77,7 @@ async function toPredictionResult(response: Response): Promise<PredictionResult>
     confidence: data.confidence,
     modelVersion: data.model_version,
     disposalHint: data.disposal_hint,
+    topPredictions: data.top_predictions,
   };
 }
 

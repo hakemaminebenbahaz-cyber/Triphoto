@@ -100,16 +100,32 @@ class ModelWrapper:
         digest = hashlib.sha256(image_bytes).hexdigest()
         index = int(digest, 16) % len(self.labels)
         # confiance stable et plausible, dérivée du hash (pas aléatoire à chaque appel)
-        confidence = 0.55 + (int(digest[:4], 16) % 40) / 100
+        confidence = round(min(0.55 + (int(digest[:4], 16) % 40) / 100, 0.99), 4)
+
+        # top-3 synthétique déterministe, décroissant, pour rester cohérent avec
+        # le mode onnx côté API/front (voir _predict_onnx) sans prétendre à une
+        # vraie distribution de probabilités.
+        others = [i for i in range(len(self.labels)) if i != index]
+        second = others[int(digest[4:8], 16) % len(others)]
+        remaining = [i for i in others if i != second]
+        third = remaining[int(digest[8:12], 16) % len(remaining)]
+
+        top_predictions = [
+            {"label": self.labels[index], "confidence": confidence},
+            {"label": self.labels[second], "confidence": round(confidence * 0.6, 4)},
+            {"label": self.labels[third], "confidence": round(confidence * 0.3, 4)},
+        ]
+
         return {
             "label": self.labels[index],
-            "confidence": round(min(confidence, 0.99), 4),
+            "confidence": confidence,
             "model_version": "stub-v0",
             # mode réellement utilisé pour CETTE prédiction — peut différer de
             # self.mode quand une image illisible fait retomber le mode "onnx"
             # sur le stub (voir predict()) ; le monitorage (C11) doit refléter
             # ce qui s'est vraiment passé, pas la config statique du wrapper.
             "mode": "stub",
+            "top_predictions": top_predictions,
         }
 
     def _predict_onnx(self, image_bytes: bytes) -> dict:
@@ -118,13 +134,18 @@ class ModelWrapper:
         (logits,) = self.session.run(None, {input_name: input_array})
 
         probabilities = softmax(logits[0])
-        index = int(np.argmax(probabilities))
+        ranked = np.argsort(probabilities)[::-1][:3]
+
+        top_predictions = [
+            {"label": self.labels[int(i)], "confidence": round(float(probabilities[i]), 4)} for i in ranked
+        ]
 
         return {
-            "label": self.labels[index],
-            "confidence": round(float(probabilities[index]), 4),
+            "label": top_predictions[0]["label"],
+            "confidence": top_predictions[0]["confidence"],
             "model_version": "waste_classifier-v1-mobilenetv3",
             "mode": "onnx",
+            "top_predictions": top_predictions,
         }
 
 

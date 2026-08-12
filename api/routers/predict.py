@@ -60,4 +60,5 @@ async def predict_waste_category(
         confidence=result["confidence"],
         model_version=result["model_version"],
         disposal_hint=DISPOSAL_HINTS.get(result["label"], "Bac ordures ménagères"),
+        top_predictions=result["top_predictions"],
     )
