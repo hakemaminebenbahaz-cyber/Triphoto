@@ -9,6 +9,7 @@ from PIL import Image
 
 from ml.scripts.prepare_data import (
     MIN_IMAGES_PER_CLASS,
+    compute_class_imbalance,
     materialize_split,
     run,
     split_dataset,
@@ -109,3 +110,26 @@ def test_run_end_to_end_produces_a_summary_report(tmp_path):
     assert summary["total_valid"] == 55
     assert (reports_dir / "data_summary.json").exists()
     assert set(summary["split_counts"].keys()) == {"train", "val", "test"}
+    assert "class_imbalance" in summary
+
+
+def test_compute_class_imbalance_flags_strong_imbalance():
+    result = compute_class_imbalance({"trash": [Path("a.jpg")] * 10, "paper": [Path("b.jpg")] * 40})
+
+    assert result["majority_class"] == "paper"
+    assert result["minority_class"] == "trash"
+    assert result["ratio"] == 4.0
+    assert result["warning"] is True
+
+
+def test_compute_class_imbalance_does_not_flag_balanced_classes():
+    result = compute_class_imbalance({"trash": [Path("a.jpg")] * 30, "paper": [Path("b.jpg")] * 35})
+
+    assert result["ratio"] == pytest.approx(35 / 30, abs=0.01)  # arrondi à 2 décimales dans compute_class_imbalance
+    assert result["warning"] is False
+
+
+def test_compute_class_imbalance_handles_empty_input():
+    result = compute_class_imbalance({})
+    assert result["ratio"] == 0.0
+    assert result["warning"] is False

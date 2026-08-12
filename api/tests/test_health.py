@@ -4,3 +4,4 @@ def test_health_ok(client):
     body = response.json()
     assert body["status"] == "ok"
     assert body["model_mode"] in {"stub", "onnx"}
+    assert body["api_version"] == "0.1.0"

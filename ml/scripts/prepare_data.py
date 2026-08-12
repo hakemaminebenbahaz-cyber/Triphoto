@@ -11,6 +11,7 @@ import argparse
 import json
 import random
 import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from PIL import Image, UnidentifiedImageError
 VALID_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 DEFAULT_SPLITS = {"train": 0.7, "val": 0.15, "test": 0.15}
 MIN_IMAGES_PER_CLASS = 20
+IMBALANCE_WARNING_RATIO = 3.0  # classe majoritaire / classe minoritaire au-delà duquel on alerte
 
 
 @dataclass
@@ -82,6 +84,26 @@ def validate_raw_dataset(raw_dir: Path) -> ValidationReport:
     return report
 
 
+def compute_class_imbalance(valid_by_class: dict[str, list[Path]]) -> dict:
+    """Ratio classe majoritaire / classe minoritaire — un déséquilibre fort
+    biaise le modèle vers les classes sur-représentées (voir ml/README.md :
+    la classe `trash` est structurellement sous-représentée dans TrashNet)."""
+    counts = {cls: len(paths) for cls, paths in valid_by_class.items() if paths}
+    if not counts:
+        return {"ratio": 0.0, "majority_class": None, "minority_class": None, "warning": False}
+
+    majority_class = max(counts, key=counts.get)
+    minority_class = min(counts, key=counts.get)
+    ratio = counts[majority_class] / counts[minority_class]
+
+    return {
+        "ratio": round(ratio, 2),
+        "majority_class": majority_class,
+        "minority_class": minority_class,
+        "warning": ratio > IMBALANCE_WARNING_RATIO,
+    }
+
+
 def split_dataset(
     valid_by_class: dict[str, list[Path]],
     ratios: dict[str, float] = DEFAULT_SPLITS,
@@ -133,6 +155,15 @@ def run(raw_dir: Path, processed_dir: Path, reports_dir: Path, seed: int = 42) -
         split: {cls: len(paths) for cls, paths in by_class.items()}
         for split, by_class in split_data.items()
     }
+    summary["class_imbalance"] = compute_class_imbalance(report.valid)
+    if summary["class_imbalance"]["warning"]:
+        imbalance = summary["class_imbalance"]
+        print(
+            f"AVERTISSEMENT : déséquilibre des classes détecté — '{imbalance['majority_class']}' a "
+            f"{imbalance['ratio']}x plus d'images que '{imbalance['minority_class']}'. "
+            "Envisager un sur-échantillonnage ou une pondération de la perte à l'entraînement.",
+            file=sys.stderr,
+        )
 
     reports_dir.mkdir(parents=True, exist_ok=True)
     with open(reports_dir / "data_summary.json", "w", encoding="utf-8") as f:

@@ -12,4 +12,4 @@ router = APIRouter(tags=["health"])
 @router.get("/health", response_model=HealthResponse)
 def health(settings: Settings = Depends(get_settings)) -> HealthResponse:
     model = get_model(settings)
-    return HealthResponse(status="ok", model_mode=model.mode)
+    return HealthResponse(status="ok", model_mode=model.mode, api_version=settings.api_version)
