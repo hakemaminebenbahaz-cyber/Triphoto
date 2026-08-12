@@ -19,8 +19,11 @@ from pathlib import Path
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision import datasets
+from torchvision import datasets, transforms
 from torchvision.models import MobileNet_V3_Small_Weights, mobilenet_v3_small
+
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
 def build_model(num_classes: int) -> tuple[nn.Module, "torchvision.transforms.Compose"]:
@@ -36,9 +39,34 @@ def build_model(num_classes: int) -> tuple[nn.Module, "torchvision.transforms.Co
     return model, weights.transforms()
 
 
-def load_dataloaders(data_dir: Path, transform, batch_size: int) -> tuple[DataLoader, DataLoader, list[str]]:
-    train_set = datasets.ImageFolder(data_dir / "train", transform=transform)
-    val_set = datasets.ImageFolder(data_dir / "val", transform=transform)
+def build_train_transform() -> "transforms.Compose":
+    """Augmentation appliquée uniquement au jeu d'entraînement (jamais à val/test).
+
+    TrashNet est composé de photos "studio" : objet isolé, fond uni, cadrage
+    serré, bon éclairage. En usage réel, les photos sont prises à la main,
+    avec un fond quelconque, un cadrage et un éclairage variables — un modèle
+    entraîné sans augmentation généralise mal à cet écart (constaté : le
+    modèle se trompe nettement plus sur des photos réelles que sur le jeu de
+    test TrashNet). Ces transforms simulent cette variabilité pendant
+    l'entraînement pour réduire l'écart train/usage réel.
+    """
+    return transforms.Compose(
+        [
+            transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
+            transforms.RandomRotation(15),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+        ]
+    )
+
+
+def load_dataloaders(
+    data_dir: Path, train_transform, eval_transform, batch_size: int
+) -> tuple[DataLoader, DataLoader, list[str]]:
+    train_set = datasets.ImageFolder(data_dir / "train", transform=train_transform)
+    val_set = datasets.ImageFolder(data_dir / "val", transform=eval_transform)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=0)
@@ -87,10 +115,11 @@ def train(
     output_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    probe = build_model(num_classes=1)  # juste pour récupérer les transforms par défaut
-    _, transform = probe
+    probe = build_model(num_classes=1)  # juste pour récupérer les transforms d'évaluation par défaut
+    _, eval_transform = probe
+    train_transform = build_train_transform()
 
-    train_loader, val_loader, classes = load_dataloaders(data_dir, transform, batch_size)
+    train_loader, val_loader, classes = load_dataloaders(data_dir, train_transform, eval_transform, batch_size)
     model, _ = build_model(num_classes=len(classes))
     model.to(device)
 

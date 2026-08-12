@@ -30,17 +30,33 @@ Pas de classe "organique" : TrashNet ne couvre pas les biodéchets — on ne pr�
 
 1. **`prepare_data.py`** (C12) — valide chaque image (ouverture PIL, rejet des fichiers corrompus), vérifie qu'aucune classe n'est sous-représentée (< 20 images), découpe en train/val/test (70/15/15, stratifié par classe, seed fixe pour la reproductibilité), matérialise dans `ml/data/processed/`, écrit `ml/reports/data_summary.json`.
 
-2. **`train.py`** (C12, C13) — backbone MobileNetV3-Small gelé + tête reclassée sur 6 sorties, optimiseur Adam sur la tête uniquement, 5 epochs par défaut. Sauvegarde le meilleur modèle (accuracy val la plus haute) en `.pt`, exporte en `.onnx` (consommé par l'API), écrit `ml/reports/train_history.json`.
+2. **`train.py`** (C12, C13) — backbone MobileNetV3-Small gelé + tête reclassée sur 6 sorties, optimiseur Adam sur la tête uniquement, 10 epochs par défaut. Le jeu d'entraînement passe par une **augmentation de données** (recadrage aléatoire, flip horizontal, jitter couleur, rotation ±15°) — jamais appliquée à val/test — pour réduire l'écart entre les photos "studio" de TrashNet et des photos prises à la main en conditions réelles (voir "Limites connues" ci-dessous). Sauvegarde le meilleur modèle (accuracy val la plus haute) en `.pt`, exporte en `.onnx` (consommé par l'API), écrit `ml/reports/train_history.json`.
 
 3. **`evaluate.py`** (C12, C13) — évalue le modèle sauvegardé sur le jeu de test isolé, calcule accuracy + precision/recall/f1 par classe + matrice de confusion, écrit `ml/reports/evaluation_report.json` + `ml/reports/confusion_matrix.png`. `validate_against_threshold()` fait office de porte de qualité pour la CI (échec du pipeline si l'accuracy passe sous 60%).
 
-## Résultat du dernier entraînement (5 epochs, seed 42)
+## Résultat du dernier entraînement (10 epochs, seed 42, avec augmentation)
 
-- Accuracy validation : **80.1 %**
-- Accuracy test (jeu isolé, jamais vu à l'entraînement) : **79.7 %**
+- Accuracy validation (meilleure epoch, #9) : **86.5 %**
+- Accuracy test (jeu isolé, jamais vu à l'entraînement) : **83.9 %**
 - Porte de qualité (seuil 60 %) : **passée**
 
 Voir `ml/reports/evaluation_report.json` pour le détail par classe et `ml/reports/confusion_matrix.png` pour la matrice de confusion.
+
+### Historique : effet de l'augmentation de données
+
+Un premier modèle (5 epochs, sans augmentation) atteignait 79,7 % sur le même jeu de test. En usage réel (photos prises à la main, fond quelconque, hors du cadre "studio" de TrashNet), ce modèle se trompait nettement plus qu'attendu au vu de son accuracy de test — signe classique d'un **écart entre distribution d'entraînement et distribution réelle**, pas d'un bug. Ajouter de l'augmentation de données à l'entraînement (recadrage aléatoire, flip, jitter couleur, rotation) simule une partie de cette variabilité sans collecter de nouvelles données :
+
+| Classe    | F1 avant (sans augmentation) | F1 après (avec augmentation) |
+|-----------|:---:|:---:|
+| cardboard | 0.86 | **0.91** |
+| glass     | 0.73 | **0.80** |
+| metal     | 0.80 | **0.85** |
+| paper     | 0.87 | 0.84 |
+| plastic   | 0.75 | **0.86** |
+| trash     | 0.76 | 0.68 |
+| **accuracy globale** | 79.7 % | **83.9 %** |
+
+La confusion dominante précédente (verre classé "plastique" : 20 des 76 photos de verre du jeu de test) tombe à 8. La classe `plastic` gagnait des faux positifs par excès de confiance (precision 0.63) ; elle atteint maintenant 0.86.
 
 ## Limites connues (mesurées, pas supposées)
 
@@ -48,14 +64,13 @@ D'après `ml/reports/evaluation_report.json` sur le jeu de test (384 images) :
 
 | Classe    | Precision | Recall | F1   |
 |-----------|-----------|--------|------|
-| cardboard | 0.91      | 0.82   | 0.86 |
-| paper     | 0.84      | 0.90   | 0.87 |
-| trash     | 0.80      | 0.73   | 0.76 |
-| metal     | 1.00      | 0.66   | 0.80 |
-| glass     | 0.78      | 0.68   | 0.73 |
-| plastic   | 0.63      | 0.90   | 0.75 |
+| cardboard | 0.95      | 0.87   | 0.91 |
+| glass     | 0.75      | 0.84   | 0.80 |
+| metal     | 0.83      | 0.87   | 0.85 |
+| paper     | 0.84      | 0.84   | 0.84 |
+| plastic   | 0.86      | 0.85   | 0.86 |
+| trash     | 0.81      | 0.59   | 0.68 |
 
-- **Confusion dominante : verre → plastique.** 20 des 76 photos de verre du jeu de test sont classées "plastique" (voir `confusion_matrix.png`) — probablement des bouteilles transparentes que le modèle confond par la forme plutôt que la matière. C'est la principale source d'erreur du modèle actuel, à montrer honnêtement en soutenance plutôt qu'à espérer que le jury ne pose pas la question.
-- **`metal` a un bon recall faible (0.66) malgré une precision parfaite (1.00)** : quand le modèle dit "métal" il a toujours raison, mais il rate 1 métal sur 3 (probablement confondu avec du verre ou du plastique brillant).
-- Dataset de taille modeste (2527 images) et fond uni pour chaque photo — un déchet photographié dans un environnement encombré (poubelle, sol, main) sera probablement moins bien reconnu en usage réel que sur ce jeu de test.
-- Classe `trash` sous-représentée à l'entraînement (137 images vs 400-600 pour les autres), mais ses métriques restent dans la moyenne — la sous-représentation n'est pas ici le facteur le plus limitant.
+- **`trash` reste la classe la plus fragile** (F1 0.68, recall 0.59) et s'est même dégradée par rapport à avant (0.76). Deux causes plausibles : c'est la classe la moins représentée à l'entraînement (137 images vs 400-600 pour les autres), et c'est une catégorie "fourre-tout" par nature — hétérogène par construction, donc plus dure à cerner qu'une matière homogène comme le carton. Avec seulement 22 exemples dans le jeu de test, ces chiffres restent aussi statistiquement volatils (une poignée d'erreurs de plus/moins change beaucoup le pourcentage).
+- Dataset de taille modeste (2527 images) et toujours des photos "studio" à la base (fond uni, objet isolé) — l'augmentation de données réduit l'écart avec des photos prises à la main en conditions réelles, mais ne l'élimine pas complètement. Un vrai jeu de données de photos "terrain" annotées resterait la meilleure amélioration future.
+- Pas de classe "organique" (voir plus haut) — assumé, pas caché.
