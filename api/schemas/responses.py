@@ -13,6 +13,7 @@ class HealthResponse(BaseModel):
 
     status: str
     model_mode: str
+    api_version: str
 
 
 class PredictionResponse(BaseModel):

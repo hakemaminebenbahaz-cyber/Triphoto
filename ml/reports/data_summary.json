@@ -43,5 +43,11 @@
       "plastic": 73,
       "trash": 22
     }
+  },
+  "class_imbalance": {
+    "ratio": 4.34,
+    "majority_class": "paper",
+    "minority_class": "trash",
+    "warning": true
   }
 }
