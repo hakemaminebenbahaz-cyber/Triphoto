@@ -7,21 +7,24 @@ venv/
 .pytest_cache/
 *.egg-info/
 
-# ML artifacts — données et poids exclus (volumineux, reproductibles via ml/scripts/)
+# ML artifacts — données brutes/intermédiaires exclues (volumineuses,
+# reproductibles via ml/scripts/). Le modèle ONNX de production (~6,3 Mo,
+# .onnx + .onnx.data) reste VERSIONNÉ : Render build directement depuis Git,
+# sans registre d'artefacts séparé, donc l'API a besoin du modèle dans le repo
+# pour ne pas tourner en mode stub en pré-production. Le checkpoint PyTorch
+# (.pt, ~6 Mo) n'est lui pas nécessaire au runtime (seul l'ONNX est chargé) :
+# reste exclu.
 ml/data/raw/*
 !ml/data/raw/.gitkeep
 ml/data/processed/*
 !ml/data/processed/.gitkeep
-ml/models/*
-!ml/models/.gitkeep
+ml/models/*.pt
 *.h5
 *.keras
-*.onnx
 *.pkl
-*.pt
 
 # ml/reports/ : les rapports (JSON + PNG, petits) restent versionnés comme preuve
-# d'exécution du pipeline — seule exception explicite ci-dessus.
+# d'exécution du pipeline.
 
 # Node / front
 app/node_modules/

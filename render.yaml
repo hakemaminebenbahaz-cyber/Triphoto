@@ -1,0 +1,27 @@
+# Blueprint Render — déploiement de la PoC en pré-production (C15).
+# Sur render.com : New > Blueprint > sélectionner ce repo > Apply.
+# Les identifiants de démo (demo-agent / change-me-too) restent ceux par
+# défaut du code (api/core/config.py, app/src/api.ts) : pas de vrais comptes
+# utilisateurs derrière, donc pas de secret à faire correspondre entre les
+# deux services pour cette PoC.
+services:
+  - type: web
+    name: triphoto-api
+    env: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: '["https://triphoto-app.onrender.com"]'
+
+  - type: web
+    name: triphoto-app
+    env: static
+    buildCommand: cd app && npm ci && npm run build
+    staticPublishPath: app/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://triphoto-api.onrender.com
