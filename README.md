@@ -61,6 +61,7 @@ Testé avec Node 20.11 (un warning `EBADENGINE` non bloquant peut s'afficher, `@
 - [`docs/agile.md`](docs/agile.md) — organisation agile solo, backlog, journal de sprint (C16)
 - [`docs/accessibilite.md`](docs/accessibilite.md) — conformité WCAG 2.1 AA, ce qui reste à auditer (C14, C17)
 - [`docs/rgpd.md`](docs/rgpd.md) — données traitées, minimisation, points de vigilance
+- [`docs/monitoring.md`](docs/monitoring.md) — métriques du modèle, alertes, validation en bac à sable (C11)
 - [`ml/README.md`](ml/README.md) — dataset, pipeline ML, résultats et limites mesurées du modèle
 
 ## État d'avancement

@@ -105,6 +105,11 @@ class ModelWrapper:
             "label": self.labels[index],
             "confidence": round(min(confidence, 0.99), 4),
             "model_version": "stub-v0",
+            # mode réellement utilisé pour CETTE prédiction — peut différer de
+            # self.mode quand une image illisible fait retomber le mode "onnx"
+            # sur le stub (voir predict()) ; le monitorage (C11) doit refléter
+            # ce qui s'est vraiment passé, pas la config statique du wrapper.
+            "mode": "stub",
         }
 
     def _predict_onnx(self, image_bytes: bytes) -> dict:
@@ -119,6 +124,7 @@ class ModelWrapper:
             "label": self.labels[index],
             "confidence": round(float(probabilities[index]), 4),
             "model_version": "waste_classifier-v1-mobilenetv3",
+            "mode": "onnx",
         }
 
 

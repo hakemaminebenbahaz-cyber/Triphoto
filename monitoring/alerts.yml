@@ -1,0 +1,38 @@
+groups:
+  - name: triphoto-api
+    rules:
+      - alert: APIDown
+        expr: up{job="triphoto-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API TriPhoto ne répond plus"
+          description: "Prometheus n'arrive plus à scraper {{ $labels.instance }} depuis au moins 1 minute."
+
+      - alert: HighPredictionErrorRate
+        expr: sum(rate(triphoto_prediction_errors_total[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'erreurs métier élevé sur /predict"
+          description: "Plus de 0,2 erreur/s en moyenne sur 5 minutes (formats refusés, fichiers vides/trop lourds). Vérifier si un client envoie des requêtes malformées ou si un changement d'usage n'a pas été anticipé."
+
+      - alert: LowAverageModelConfidence
+        expr: histogram_quantile(0.5, sum(rate(triphoto_prediction_confidence_bucket[15m])) by (le)) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Confiance médiane du modèle anormalement basse"
+          description: "La confiance médiane des prédictions est passée sous 0.5 sur les 15 dernières minutes — signal possible de dérive des données en entrée (photos hors périmètre d'entraînement) ou de dégradation du modèle. Justifie un examen manuel avant d'envisager un ré-entraînement (C13)."
+
+      - alert: HighPredictionLatency
+        expr: histogram_quantile(0.95, sum(rate(triphoto_prediction_latency_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence de prédiction dégradée"
+          description: "Le 95e percentile du temps de traitement d'une prédiction dépasse 1 seconde sur 5 minutes glissantes."

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.core.config import get_settings
 from api.routers import auth, health, predict
@@ -23,3 +24,9 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(predict.router)
+
+# Monitorage (C11) : /metrics expose à la fois les métriques HTTP génériques
+# (latence, codes retour, en-cours par endpoint — "bonne santé du système")
+# et les métriques métier définies dans api/core/metrics.py, enregistrées
+# dans le même registre Prometheus global.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=True)

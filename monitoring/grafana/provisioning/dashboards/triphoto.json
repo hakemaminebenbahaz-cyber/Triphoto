@@ -1,0 +1,68 @@
+{
+  "title": "TriPhoto — Monitorage du modèle",
+  "uid": "triphoto-model",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API disponible",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "up{job=\"triphoto-api\"}", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Prédictions par minute, par matière",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum by (label) (rate(triphoto_predictions_total[1m])) * 60", "legendFormat": "{{label}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Taux d'erreurs métier (/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum by (reason) (rate(triphoto_prediction_errors_total[5m]))", "legendFormat": "{{reason}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Confiance du modèle (médiane et p10)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum(rate(triphoto_prediction_confidence_bucket[15m])) by (le))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.1, sum(rate(triphoto_prediction_confidence_bucket[15m])) by (le))", "legendFormat": "p10", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1 } }
+    },
+    {
+      "id": 5,
+      "title": "Latence de prédiction (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(triphoto_prediction_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95 (s)", "refId": "A" }
+      ]
+    }
+  ]
+}

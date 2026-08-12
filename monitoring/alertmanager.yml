@@ -1,0 +1,31 @@
+route:
+  receiver: default
+  group_by: ["alertname"]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: default
+      repeat_interval: 15m
+
+receivers:
+  - name: default
+    webhook_configs:
+      # Récepteur de test utilisé pour la validation en bac à sable (voir
+      # docs/monitoring.md) : à remplacer par un vrai canal (Slack, e-mail via
+      # SMTP, PagerDuty...) avant un déploiement réel. Le champ `url` ci-dessous
+      # cible un petit serveur HTTP local lancé uniquement pour le test.
+      - url: "http://host.docker.internal:9099/alert"
+        send_resolved: true
+
+# Exemple de configuration e-mail pour la production (désactivé) :
+# receivers:
+#   - name: default
+#     email_configs:
+#       - to: "astreinte@collectivite.example"
+#         from: "alertes-triphoto@collectivite.example"
+#         smarthost: "smtp.example.com:587"
+#         auth_username: "alertes-triphoto@collectivite.example"
+#         auth_password_file: "/run/secrets/smtp_password"
