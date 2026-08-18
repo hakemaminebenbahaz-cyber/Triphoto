@@ -62,6 +62,12 @@ Conformément à l'exigence "la chaîne de monitorage est d'abord testée dans u
 
 Ce test prouve que la chaîne fonctionne réellement de la métrique jusqu'à la notification — pas seulement que les fichiers de config sont syntaxiquement valides.
 
+3. **Dashboard Grafana vérifié avec de vraies données de production** (18/08/2026) : Prometheus et Grafana lancés en conteneurs Docker (réseau dédié, provisioning du dépôt monté directement), Prometheus configuré pour scruter `/metrics` de **l'API en production** (`triphoto-api.onrender.com`) plutôt qu'un environnement de test. Trafic réel généré (prédictions et erreurs volontaires) pour peupler les panneaux :
+
+   ![Dashboard Grafana avec données réelles](assets/grafana-dashboard.png)
+
+   Les cinq panneaux affichent des données réellement mesurées, pas des exemples fictifs : disponibilité de l'API, volumétrie des prédictions par matière, taux d'erreurs métier, confiance du modèle (p50/p10) et latence p95 — tous réagissent visiblement au trafic généré pendant le test.
+
 ## Ce qui reste à faire avant un déploiement réel
 
 - Remplacer le récepteur webhook de test par un vrai canal (e-mail SMTP, Slack) — modèle de config e-mail déjà présent en commentaire dans `monitoring/alertmanager.yml`.
