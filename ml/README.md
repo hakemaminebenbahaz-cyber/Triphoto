@@ -42,6 +42,18 @@ Pas de classe "organique" : TrashNet ne couvre pas les biodéchets — on ne pr�
 
 Voir `ml/reports/evaluation_report.json` pour le détail par classe et `ml/reports/confusion_matrix.png` pour la matrice de confusion.
 
+### Itération 4 : essai de photos web, échec, retour arrière (feedback loop, méthode complète)
+
+Une nouvelle photo réelle (verre à facettes sur fond blanc, style photo produit) a de nouveau été mal classée après l'itération 3 — "plastique" à 41 %, verre absent du top-3. Diagnostic : cette photo n'est ni une bouteille teintée (TrashNet) ni une photo prise à la main (itération 3), mais une troisième distribution encore différente (photo produit/stock, motif à facettes).
+
+**Action tentée** : 21 photos de verre transparent collectées sur des banques d'images libres de droits (Wikimedia Commons, Openverse — licences CC0/BY/BY-SA), 15 retenues après tri visuel (6 écartées : verre teinté ancien de musée, macro trop abstraite, contenu opaque masquant le verre, scène trop chargée avec d'autres objets). Ajoutées à la classe `glass`, ré-entraînement complet.
+
+**Résultat mesuré sur les 9 photos réelles tenues à l'écart de l'entraînement** (5 nouvelles + 4 de l'itération 3) : **1 correcte sur 9**. Pire : la confusion dominante s'est déplacée de `glass → paper` vers **`glass → metal`** (13 cas dans la matrice de confusion, contre 6 avant), probablement parce que les forts reflets spéculaires des photos "studio" professionnelles ressemblent visuellement au brillant d'un objet métallique — un nouveau raccourci appris par le modèle, pas une amélioration.
+
+**Décision** : retour arrière. Les 15 photos web ont été retirées, le modèle a été ré-entraîné sur l'état de l'itération 3 (11 photos réelles uniquement), retrouvant exactement 81,4 % d'accuracy test. Conserver un correctif qui déplace un problème plutôt que de le résoudre n'est pas un progrès, même si l'intention était bonne.
+
+**Enseignement retenu** : les photos "réelles" ne sont pas interchangeables. Une photo prise au téléphone dans des conditions d'usage réel (itération 3) et une photo issue d'une banque d'images professionnelle (itération 4) sont deux distributions différentes, malgré le même sujet apparent. La prochaine tentative d'amélioration de la classe `glass` devra continuer avec des photos prises dans les conditions réelles d'usage de l'application, pas des photos "propres" trouvées en ligne.
+
 ### Itération 3 : ajout de 11 photos réelles de verre transparent (feedback loop, C11/C20)
 
 Un usager testant l'application en conditions réelles a signalé des erreurs sur du verre transparent tenu à la main (voir capture ci-dessous) : le modèle prédisait "papier" avec une confiance de 96 %. Diagnostic confirmé par inspection des données d'entraînement : la classe `glass` de TrashNet ne contient que des **bouteilles teintées** (brun, vert) photographiées en studio — jamais de verre transparent incolore. Un objet transparent laisse transparaître le fond, donnant une image globalement pâle et uniforme qui ressemble statistiquement à la classe `paper` (papier blanc sur fond clair) plutôt qu'à une bouteille de bière brune.

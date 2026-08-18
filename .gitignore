@@ -40,3 +40,5 @@ app/*.tsbuildinfo
 .DS_Store
 Thumbs.db
 .vscode/
+Rapport_*.docx
+Rapport_*.pdf
