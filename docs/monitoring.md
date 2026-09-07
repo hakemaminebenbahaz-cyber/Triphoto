@@ -62,11 +62,11 @@ Conformément à l'exigence "la chaîne de monitorage est d'abord testée dans u
 
 Ce test prouve que la chaîne fonctionne réellement de la métrique jusqu'à la notification — pas seulement que les fichiers de config sont syntaxiquement valides.
 
-3. **Dashboard Grafana vérifié avec de vraies données de production** (18/08/2026) : Prometheus et Grafana lancés en conteneurs Docker (réseau dédié, provisioning du dépôt monté directement), Prometheus configuré pour scruter `/metrics` de **l'API en production** (`triphoto-api.onrender.com`) plutôt qu'un environnement de test. Trafic réel généré (prédictions et erreurs volontaires) pour peupler les panneaux :
+3. **Dashboard Grafana vérifié avec de vraies données** (07/09/2026) : Prometheus et Grafana lancés en binaires autonomes (Docker Desktop indisponible ce jour-là), provisioning pointé sur le dépôt réel (`monitoring/grafana/provisioning/`, datasource adaptée à l'URL locale du Prometheus autonome), Prometheus configuré pour scruter `/metrics` de **l'API tournant en local**. Trafic réel généré contre l'API (134 prédictions réparties sur les 6 classes réelles du jeu de test, plus des requêtes volontairement invalides) pour peupler tous les panneaux, y compris les 4 nouvelles tuiles de synthèse ajoutées au dashboard (total, taux d'erreur, latence moyenne, confiance moyenne) et le panneau "Alertes actives" :
 
    ![Dashboard Grafana avec données réelles](assets/grafana-dashboard.png)
 
-   Les cinq panneaux affichent des données réellement mesurées, pas des exemples fictifs : disponibilité de l'API, volumétrie des prédictions par matière, taux d'erreurs métier, confiance du modèle (p50/p10) et latence p95 — tous réagissent visiblement au trafic généré pendant le test.
+   Toutes les valeurs affichées viennent de métriques réellement mesurées, pas d'exemples fictifs : 134 prédictions comptabilisées, volumétrie par matière, taux d'erreurs métier, confiance du modèle (p50/p10) et latence p95 — tous réagissent visiblement au trafic généré pendant le test. Le flux d'erreurs volontaires (contenu au mauvais `Content-Type`) a fait passer l'alerte `HighPredictionErrorRate` en état **`firing`** dans Prometheus ; le panneau "Alertes actives" (requête `ALERTS{alertstate="firing"}`) l'affiche en temps réel, preuve que la chaîne métrique → règle d'alerte → dashboard fonctionne de bout en bout, pas seulement que les fichiers de config sont valides.
 
 ## Ce qui reste à faire avant un déploiement réel
 

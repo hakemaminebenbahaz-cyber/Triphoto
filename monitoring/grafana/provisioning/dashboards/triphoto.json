@@ -3,7 +3,7 @@
   "uid": "triphoto-model",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "time": { "from": "now-6h", "to": "now" },
   "panels": [
@@ -11,7 +11,7 @@
       "id": 1,
       "title": "API disponible",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [{ "expr": "up{job=\"triphoto-api\"}", "refId": "A" }],
       "fieldConfig": {
@@ -23,10 +23,87 @@
       }
     },
     {
+      "id": 6,
+      "title": "Total prédictions",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "sum(triphoto_predictions_total)", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+    },
+    {
+      "id": 7,
+      "title": "Taux d'erreur",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "100 * sum(triphoto_prediction_errors_total) / (sum(triphoto_predictions_total) + sum(triphoto_prediction_errors_total))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Latence moyenne",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "1000 * (sum(rate(triphoto_prediction_latency_seconds_sum[15m])) / sum(rate(triphoto_prediction_latency_seconds_count[15m])))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 0 } }
+    },
+    {
+      "id": 9,
+      "title": "Confiance moyenne",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "100 * (sum(rate(triphoto_prediction_confidence_sum[15m])) / sum(rate(triphoto_prediction_confidence_count[15m])))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 50 },
+              { "color": "green", "value": 70 }
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": 2,
       "title": "Prédictions par minute, par matière",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         { "expr": "sum by (label) (rate(triphoto_predictions_total[1m])) * 60", "legendFormat": "{{label}}", "refId": "A" }
@@ -36,7 +113,7 @@
       "id": 3,
       "title": "Taux d'erreurs métier (/s)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         { "expr": "sum by (reason) (rate(triphoto_prediction_errors_total[5m]))", "legendFormat": "{{reason}}", "refId": "A" }
@@ -46,7 +123,7 @@
       "id": 4,
       "title": "Confiance du modèle (médiane et p10)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         { "expr": "histogram_quantile(0.5, sum(rate(triphoto_prediction_confidence_bucket[15m])) by (le))", "legendFormat": "p50", "refId": "A" },
@@ -58,11 +135,19 @@
       "id": 5,
       "title": "Latence de prédiction (p95)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         { "expr": "histogram_quantile(0.95, sum(rate(triphoto_prediction_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95 (s)", "refId": "A" }
       ]
+    },
+    {
+      "id": 10,
+      "title": "Alertes actives",
+      "type": "table",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "ALERTS{alertstate=\"firing\"}", "refId": "A", "format": "table", "instant": true }]
     }
   ]
 }
